@@ -8,16 +8,12 @@ type_synonym vname = string
 type_synonym val = int
 type_synonym state = "vname \<Rightarrow> val"
 
-text_raw{*\snip{AExpaexpdef}{2}{1}{% *}
 datatype aexp = N int | V vname | Plus aexp aexp
-text_raw{*}%endsnip*}
 
-text_raw{*\snip{AExpavaldef}{1}{2}{% *}
 fun aval :: "aexp \<Rightarrow> state \<Rightarrow> val" where
 "aval (N n) s = n" |
 "aval (V x) s = s x" |
 "aval (Plus a\<^sub>1 a\<^sub>2) s = aval a\<^sub>1 s + aval a\<^sub>2 s"
-text_raw{*}%endsnip*}
 
 
 value "aval (Plus (V ''x'') (N 5)) (\<lambda>x. if x = ''x'' then 7 else 0)"
@@ -42,6 +38,7 @@ lemma "<a := 1, b := 2> = (<> (a := 1)) (b := (2::int))"
   by (rule refl)
 
 value "aval (Plus (V ''x'') (N 5)) <''x'' := 7>"
+value "<>"  
 
 
 text {* In  the @{term[source] "<a := b>"} syntax, variables that are not mentioned are 0 by default:
@@ -68,9 +65,9 @@ text_raw{*}%endsnip*}
 
 theorem aval_asimp_const:
   "aval (asimp_const a) s = aval a s"
-apply(induction a)
-apply (auto split: aexp.split)
-done
+  apply(induction a)
+  apply (auto split: aexp.split)
+  done
   
 text{* Now we also eliminate all occurrences of 0 in additions. The standard
 method: optimized versions of the constructors: *}
@@ -93,6 +90,7 @@ text_raw{*\snip{AExpasimpdef}{2}{0}{% *}
 fun asimp :: "aexp \<Rightarrow> aexp" where
 "asimp (N n) = N n" |
 "asimp (V x) = V x" |
+"asimp (Inc a) = Inc (asimp a)" |
 "asimp (Plus a\<^sub>1 a\<^sub>2) = plus (asimp a\<^sub>1) (asimp a\<^sub>2)"
 text_raw{*}%endsnip*}
 

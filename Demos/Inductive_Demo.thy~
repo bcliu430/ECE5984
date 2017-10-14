@@ -4,9 +4,6 @@ begin
 
 subsection{*Inductive definition of the even numbers*}
 
-  
-  
-  
 inductive ev :: "nat \<Rightarrow> bool" where
 ev0: "ev 0" |
 evSS: "ev n \<Longrightarrow> ev (Suc(Suc n))"
@@ -28,26 +25,14 @@ fun evn :: "nat \<Rightarrow> bool" where
 
 text{*A simple example of rule induction: *}
 lemma "ev n \<Longrightarrow> evn n"
-  apply(induction rule: ev.induct)
-    by auto
-
+apply(induction rule: ev.induct)
+oops
 
 text{* An induction on the computation of evn: *}
 lemma "evn n \<Longrightarrow> ev n"
-  apply(induction n rule: evn.induct)
-    apply (simp add: ev0)
-   apply simp
-  apply (rule evSS)
-  apply simp
-    done
+apply(induction n rule: evn.induct)
+oops
 
-lemma "evn n \<Longrightarrow> ev n"
-  apply(induction n rule: evn.induct)
-  apply (auto intro: ev.intros)  
-  done
-      
-      
-      
 text{* No problem with termination because the premises are always smaller
 than the conclusion: *}
 declare ev.intros[simp,intro]
@@ -60,10 +45,8 @@ done
 
 text{* The power of arith: *}
 lemma "ev n \<Longrightarrow> \<exists>k. n = 2*k"
-  apply(induction rule: ev.induct)
-    apply auto try0
-  by presburger
-    
+apply(induction rule: ev.induct)
+oops    
 
 
 subsection{*Inductive definition of the reflexive transitive closure *}
@@ -106,7 +89,7 @@ done
 
 lemma star_imp_star': "star r x y \<Longrightarrow> star' r x y"
   apply (induction rule: star.induct)
-   apply (rule refl')
+  apply (rule refl')
   thm star'_trans[OF step'[OF refl']] (* Let's assemble a suitable theorem to solve the second subgoal *)
   apply (rule star'_trans[OF step'[OF refl']])  
   apply (assumption)  
@@ -130,7 +113,6 @@ lemma star'_eq_star: "star' r x y = star r x y"
   by (auto intro: star_imp_star' star'_imp_star)
     
 (* We can also omit the arguments *)  
-thm ext    
 lemma "star' = star"
   apply (rule ext)
   apply (rule ext)

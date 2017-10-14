@@ -15,14 +15,7 @@ lemma "{x+y :: int | x y. x>0 \<and> y>0} = {x. x>1}"
 section{* Logic and sets *}
 
 lemma "\<forall>x. \<exists>y. x=y"
-  by auto
-    
-term "()"    
-    
-lemma "\<exists>x::unit. \<forall>y. x=y" by simp
-  
-lemma "\<exists>x. True" by blast
-    
+by auto
 
 lemma "A \<subseteq> B \<inter> C \<Longrightarrow> A \<subseteq> B \<union> C"
 by auto
@@ -59,18 +52,12 @@ lemma "R^* \<subseteq> (R \<union> S)^*"
 
 (* Find a suitable P and try sledgehammer: *)
 
-lemma lemma1: "a # xs = ys @ [a] \<Longrightarrow> xs=[] \<and> ys=[] \<or> (\<exists>zs. xs=zs@[a] \<and> ys=a#zs)"
+lemma "a # xs = ys @ [a] \<Longrightarrow> xs=[] \<and> ys=[] \<or> (\<exists>zs. xs=zs@[a] \<and> ys=a#zs)"
   by (metis Cons_eq_append_conv list.inject)
     
 (* Can you also show equivalence ? *)    
-lemma "a # xs = ys @ [a] \<longleftrightarrow> (xs=[] \<and> ys=[] \<or> (\<exists>zs. xs=zs@[a] \<and> ys=a#zs))"
-  by (meson Cons_eq_append_conv lemma1)
-    
-lemma "{x::int. x>0} \<subseteq> {x. x>-3}" 
-  apply safe
-  by auto  
-    
-thm lemma1    
+lemma "a # xs = ys @ [a] \<longleftrightarrow> P"
+  oops
     
 
 section{* Arithmetic *}

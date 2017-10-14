@@ -1,0 +1,74 @@
+theory Tutorial3
+imports Main
+begin
+
+  (*
+    A labeled transition system (LTS) is a directed graph where the edges 
+    are annotated with labels. 
+
+    A word from node q to node v is a list of labels, corresponding
+    to the edges on a path from q to v.
+
+    For example, the well known concept of finite automata, is usually 
+    represented as an LTS with an initial state and a set of final states.
+  *)
+  
+  type_synonym ('q,'a) lts = "'q \<Rightarrow> 'a \<Rightarrow> 'q \<Rightarrow> bool"
+  
+    
+  inductive word :: "('q,'a) lts \<Rightarrow> 'q \<Rightarrow> 'a list \<Rightarrow> 'q \<Rightarrow> bool" 
+    (* empty: "" *)
+  
+  lemma word_append: "\<lbrakk>word L p as q; word L q bs r\<rbrakk> \<Longrightarrow> word L p (as@bs) r"
+    oops
+
+  lemma word_split: "word L p (as@bs) r \<Longrightarrow> (\<exists>q. word L p as q \<and> word L q bs r)"
+    (* Try to instantiate induction rule *)
+    apply (induction L p "as@bs" r arbitrary: as rule: word.induct)
+    sorry  
+      
+      
+  (* Sometimes, induction over a different structure, and case analysis, may be simpler: 
+
+    To add case-distinctions over an inductive predicate to the rules that auto/blast/force/...
+    try automatically, use the elim: modifier. The rule is called <name>.cases
+  *)
+  thm word.cases
+  lemma "word L p (as@bs) r \<Longrightarrow> (\<exists>q. word L p as q \<and> word L q bs r)"
+    apply (induction as arbitrary: p)
+    sorry  
+
+  (* Combining both lemmas *)    
+  lemma word_append_conv: "word L p (as@bs) r \<longleftrightarrow> (\<exists>q. word L p as q \<and> word L q bs r)"
+    sorry
+
+      
+  (* Sometimes, we can also write an inductive predicate as a function.
+    For example, the empty and append equations hint at function equations
+    that recurse over the list!
+  *)
+      
+  thm empty word_append_conv
+    
+  (* We can refine them a bit *)  
+  (* In the proofs, we only need to do a case distinction over word ... 
+    no induction is required.
+
+  *)
+  lemma word_Nil_conv: "word L p [] q \<longleftrightarrow> p=q"
+    sorry
+    
+  lemma word_Cons_conv: "word L p (a#bs) r \<longleftrightarrow> (\<exists>q. L p a q \<and> word L q bs r)"
+    sorry
+    
+  (* Once we have proven the above rules, we can directly encode them as a function *)
+  fun fword :: "('q,'a) lts \<Rightarrow> 'q \<Rightarrow> 'a list \<Rightarrow> 'q \<Rightarrow> bool" 
+    where "fword _ _ _ _ = undefined"
+
+  (* Proving equality to the inductive predicate is then straightforward,
+    by induction on the function / structural induction *)
+  lemma "fword L p w q \<longleftrightarrow> word L p w q"
+    sorry
+    
+
+end
