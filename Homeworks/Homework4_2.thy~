@@ -16,7 +16,9 @@ begin
     if there is a path of length n from x to y.
   *)
   
-  inductive pol :: "('a \<Rightarrow> 'a \<Rightarrow> bool) \<Rightarrow> 'a \<Rightarrow> nat \<Rightarrow> 'a \<Rightarrow> bool" 
+inductive pol :: "('a \<Rightarrow> 'a \<Rightarrow> bool) \<Rightarrow> 'a \<Rightarrow> nat \<Rightarrow> 'a \<Rightarrow> bool" where
+  empty: "pol E a 0 a"
+  | step:"\<lbrakk>E a b; pol E b n c\<rbrakk> \<Longrightarrow> pol E a (Suc n) c"
     (* Add inductive specification here! *)
      
   (* Show that two paths can be appended. Their length is the sum of the two lengths.
@@ -24,8 +26,15 @@ begin
       as rule induction will pick the first matching premise.
       If not, use rotate_tac.
   *)  
-  lemma pol_append: "\<lbrakk>pol E x k y; pol E y l z\<rbrakk> \<Longrightarrow> pol E x (k+l) z"
-    sorry
+lemma pol_append: "\<lbrakk>pol E x k y; pol E y l z\<rbrakk> \<Longrightarrow> pol E x (k+l) z"
+  apply (induction rule: pol.induct)
+  apply simp
+  apply simp
+  apply (rule step)
+  apply assumption
+  by assumption
+    
+    
 
   (*
     Write a recursive function that checks whether there is a path of length n.
@@ -34,7 +43,9 @@ begin
       
   fun fpol :: "('a \<Rightarrow> 'a \<Rightarrow> bool) \<Rightarrow> 'a \<Rightarrow> nat \<Rightarrow> 'a \<Rightarrow> bool"
     where
-    "fpol _ _ _ _ = undefined"
+    "fpol E a 0 b  \<longleftrightarrow>  a=b"
+  | "fpol E a (Suc n) b \<longleftrightarrow> (\<exists>q. E a q \<and> fpol E q n b)"
+
 
   (* Show that the function is equivalent to the inductive version! 
 
@@ -43,19 +54,31 @@ begin
 
     The only lemma that MUST be proved at the end is fpol_eq_pol!
   *)  
-  lemma fpol_imp_pol: "fpol E x l y \<Longrightarrow> pol E x l y"
-    sorry
+lemma fpol_imp_pol: "fpol E x l y \<Longrightarrow> pol E x l y"
+  apply (induction l arbitrary: x)
+    apply (auto intro: empty)
+    by (simp add: pol.step)
       
   lemma pol_imp_fpol: "pol E x l y \<Longrightarrow> fpol E x l y"
-    sorry
+    apply (induction E x l y rule: fpol.induct)
+    apply (metis Zero_not_Suc fpol.simps(1) pol.simps)
+    by (metis Suc_inject Zero_not_Suc fpol.simps(2) pol.simps)
     
-  lemma fpol_eq_pol: "fpol = pol" 
-    sorry
+lemma fpol_eq_pol: "fpol = pol" 
+  apply (intro ext)
+   apply (auto)
+  done
+    oops
+    
+      
       
   (* Using fpol, show that a path can be split *)    
   lemma fpol_split: "fpol E x (l1+l2) z \<Longrightarrow> (\<exists>y. fpol E x l1 y \<and> fpol E y l2 z)"    
-    sorry
-      
+    apply (induction E x "l1+l2" z arbitrary: x y rule:fpol.induct)
+     apply (auto)
+      oops
+   
+        
   (* Combine the split and append lemma *)
   lemma pol_append_conv: "pol E x (l1+l2) z \<longleftrightarrow> (\<exists>y. pol E x l1 y \<and> pol E y l2 z)"
     sorry

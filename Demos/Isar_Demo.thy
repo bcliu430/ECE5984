@@ -66,6 +66,8 @@ qed
 
 section{* Proof patterns *}
 
+thm iffI
+
 lemma "P \<longleftrightarrow> Q"
 proof
   assume "P"
@@ -75,6 +77,9 @@ next
   show "P" sorry
 qed
 
+  
+thm equalityI  
+  
 lemma "A = (B::'a set)"
 proof
   show "A \<subseteq> B" sorry
@@ -82,6 +87,8 @@ next
   show "B \<subseteq> A" sorry
 qed
 
+thm subsetI
+  
 lemma "A \<subseteq> B"
 proof
   fix a
@@ -89,9 +96,41 @@ proof
   show "a \<in> B" sorry
 qed
 
+(* Sometimes, you want to combine equalityI and subsetI *)  
+lemma "A = (B::'a set)"
+proof (intro equalityI subsetI)
+  fix x assume "x\<in>A" show "x\<in>B" sorry
+next
+  fix x assume "x\<in>B" show "x\<in>A" sorry
+qed
+  
+lemma "{x. \<exists>y. x=y+y} = {x::nat. even x}"
+proof (intro equalityI subsetI)
+  fix x::nat assume "x\<in>{x. \<exists>y. x=y+y}" 
+  hence "\<exists>y. x=y+y" by simp
+  thus "x\<in>{x. even x}" by auto
+next
+  fix x::nat assume "x\<in>{x. even x}" thus "x\<in>{x. \<exists>y. x=y+y}" sorry
+qed
+  
+  
+lemma "A = (B::'a set)"
+proof
+  show "A \<subseteq> B" proof
+    fix x assume "x \<in> A" show "x\<in>B" sorry
+  qed      
+next
+  show "B \<subseteq> A" proof
+    fix x assume "x \<in> B" show "x\<in>A" sorry
+  qed      
+qed
+
+
+  
+  
 text{* Contradiction *}
 
-lemma P
+lemma P 
 proof (rule ccontr)
   assume "\<not>P"
   show "False" sorry
@@ -108,6 +147,17 @@ next
   show "R" sorry
 qed
 
+  
+lemma "R"
+proof (cases "P::bool")
+  assume "P"
+  show "R" sorry
+next
+  assume "\<not> P"
+  show "R" sorry
+qed
+  
+  
 lemma "R"
 proof -
   have "P \<or> Q" sorry
@@ -121,7 +171,21 @@ proof -
   qed
 qed
 
+text \<open>\<open>\<forall>\<close> introduction\<close>
+  
+lemma "\<forall>x. x < Suc x"
+proof
+  fix x
+  show "x<Suc x" by simp
+qed      
 
+text \<open>\<open>\<exists>\<close> elimination\<close>  
+  
+lemma "\<exists>x. Suc x < 3"  
+proof
+  show "Suc 0 < 3" by simp
+qed  
+  
 text{* obtain example *}
 
 lemma "\<not> surj(f :: 'a \<Rightarrow> 'a set)"
@@ -136,31 +200,38 @@ qed
 
 text{* Interactive exercise: *}
 
-lemma assumes "\<exists>x. \<forall>y. P x y" shows "\<forall>y. \<exists>x. P x y"
-sorry
-
-
-subsection \<open>(In)Equation Chains\<close>
-
-lemma "(0::real) \<le> x^2 + y^2 - 2*x*y"
-proof -
-  have "0 \<le> (x - y)^2" by simp
-  also have "\<dots> = x^2 + y^2 - 2*x*y"
-    by(simp add: numeral_eq_Suc algebra_simps)
-  finally show "0 \<le> x^2 + y^2 - 2*x*y" .
+lemma assumes A: "\<exists>x. \<forall>y. P x y" shows "\<forall>y. \<exists>x. P x y"
+proof
+  fix y
+  show "\<exists>x. P x y" 
+  proof - 
+    from A obtain x where "\<forall>y. P x y" by blast
+    hence "P x y" by blast
+    thus "\<exists>x. P x y" by blast
+  qed      
 qed
 
-text{* Interactive exercise: *}
 
-lemma
-  fixes x y :: real
-  assumes "x \<ge> y" "y > 0"
-  shows "(x - y) ^ 2 \<le> x^2 - y^2"
-proof -
-  have "(x - y) ^ 2 = x^2 + y^2 - 2*x*y"
-    by(simp add: numeral_eq_Suc algebra_simps)
-  show "(x - y) ^ 2 \<le> x^2 - y^2" sorry
-qed
+lemma assumes A: "\<exists>x. \<forall>y. P x y" shows "\<forall>y. \<exists>x. P x y"
+proof
+  fix y
+  from A obtain x where 1: "P x y" by blast
+  show "\<exists>x. P x y" proof
+    show "P x y" by fact
+  qed      
+qed    
+  
+  
+  
+(* Witness for existential can only contain variables that were 
+  fixed BEFORE exI rule was applied! 
+  
+  Try starting proof above with 
+    proof (intro allI exI)
+  
+*)
+  
+  
 
 
 section{* Streamlining proofs *}
@@ -171,11 +242,17 @@ text{* Show EX *}
 
 lemma "\<exists> xs. length xs = 0" (is "\<exists> xs. ?P xs")
 proof
-  show "?P([])" by simp
+  show "?P []" by simp
 qed
 
-text{* Multiple EX easier with forward proof: *}
+text{* Multiple EX *}
 
+lemma "\<exists> x y :: int. x < z & z < y" (is "\<exists> x y. ?P x y")
+proof (intro exI)
+  show "?P (z - 1) (z + 1)" by arith
+qed
+
+(* Forward proof *)
 lemma "\<exists> x y :: int. x < z & z < y" (is "\<exists> x y. ?P x y")
 proof -
   have "?P (z - 1) (z + 1)" by arith
@@ -187,6 +264,7 @@ subsection{* Quoting facts: *}
 
 lemma assumes "x < (0::int)" shows "x*x > 0"
 proof -
+  thm \<open>x<0\<close>
   from `x<0` show ?thesis by(metis mult_neg_neg)
 qed
 
@@ -195,7 +273,16 @@ subsection {* Example: Top Down Proof Development *}
 
 lemma "(\<exists>ys zs. xs = ys @ zs \<and> length ys = length zs) \<or>
   (\<exists>ys zs. xs = ys @ zs \<and> length ys = length zs + 1)"
-sorry
+proof cases
+  assume "even (length xs)" 
+  then obtain n where A: "length xs = n+n"
+    by (metis dvdE mult_2)
+  hence W1: "xs = take n xs @ drop n xs" by simp
+  have W2: "length (take n xs) = length (drop n xs)" by (simp add: A)
+  from W1 W2 show ?thesis by blast
+next      
+  assume "odd (length xs)" thus ?thesis sorry
+qed  
 
 
 subsection {* moreover *}
@@ -217,9 +304,24 @@ proof -
     have "EX b. n = k*b"
     proof
       show "n = k*(a - 1)" using a by(simp add: algebra_simps)
-    qed }
+    qed } 
   with assms show ?thesis by (auto simp add: dvd_def)
 qed
+
+subsection{* Local Lemmas. Shortcut for raw proof block with name *}
+
+lemma fixes k :: int assumes "k dvd (n+k)" shows "k dvd n"
+proof -
+  have AUX: "EX b. n = k*b" if a: "n+k = k*a" for a
+  proof
+    show "n = k*(a - 1)" using a by(simp add: algebra_simps)
+  qed 
+  with assms show ?thesis by (auto simp add: dvd_def)
+
+  thm AUX (* Local lemma also available by its name *)
+qed
+
+
 
 
 section{* Solutions to interactive exercises *}

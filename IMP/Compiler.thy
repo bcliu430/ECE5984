@@ -20,8 +20,9 @@ text {*
   Similarly, we will want to access the ith element of a list, 
   where @{term i} is an @{typ int}.
 *}
-fun inth :: "'a list \<Rightarrow> int \<Rightarrow> 'a" (infixl "!!" 100) where
-"(x # xs) !! i = (if i = 0 then x else xs !! (i - 1))"
+
+abbreviation inth :: "'a list \<Rightarrow> int \<Rightarrow> 'a" (infixl "!!" 100) where
+  "l!!i \<equiv> l ! (nat i)"
 
 text {*
   The only additional lemma we need about this function 
@@ -30,7 +31,7 @@ text {*
 lemma inth_append [simp]:
   "0 \<le> i \<Longrightarrow>
   (xs @ ys) !! i = (if i < size xs then xs !! i else ys !! (i - size xs))"
-by (induction xs arbitrary: i) (auto simp: algebra_simps)
+  by (auto simp: nth_append nat_diff_distrib)
 
 text{* We hide coercion @{const int} applied to @{const length}: *}
 
@@ -51,10 +52,25 @@ text_raw{*}%endsnip*}
 type_synonym stack = "val list"
 type_synonym config = "int \<times> state \<times> stack"
 
+(*
 abbreviation "hd2 xs == hd(tl xs)"
 abbreviation "tl2 xs == tl(tl xs)"
+*)
 
 fun iexec :: "instr \<Rightarrow> config \<Rightarrow> config" where
+  "iexec (LOADI n) (i,s,stk) = (i+1,s,n#stk)"
+| "iexec (LOAD x) (i,s,stk) = (i+1,s,s x # stk)"  
+| "iexec (ADD) (i,s,a1#a2#stk) = (i+1,s,(a1+a2) # stk)"
+| "iexec (STORE x) (i,s,a#stk) = (i+1,s(x:=a),stk)"
+| "iexec (JMP n) (i,s,stk) = (i+1+n,s,stk)"
+| "iexec (JMPLESS n) (i,s,a1#a2#stk) = (if a2<a1 then i+1+n else i+1,s,stk)"
+| "iexec (JMPGE n) (i,s,a1#a2#stk) = (if a2\<ge>a1 then i+1+n else i+1,s,stk)"
+| "iexec (ADD) (i,_,_) = (i+1,undefined,undefined)"
+| "iexec (STORE _) (i,_,_) = (i+1,undefined,undefined)"
+| "iexec (JMPLESS _) (i,_,_) = (i+1,undefined,undefined)"
+| "iexec (JMPGE n) (i,_,_) = (i+1+n,undefined,undefined)"
+
+(*fun iexec :: "instr \<Rightarrow> config \<Rightarrow> config" where
 "iexec instr (i,s,stk) = (case instr of
   LOADI n \<Rightarrow> (i+1,s, n#stk) |
   LOAD x \<Rightarrow> (i+1,s, s x # stk) |
@@ -63,6 +79,7 @@ fun iexec :: "instr \<Rightarrow> config \<Rightarrow> config" where
   JMP n \<Rightarrow>  (i+1+n,s,stk) |
   JMPLESS n \<Rightarrow> (if hd2 stk < hd stk then i+1+n else i+1,s,tl2 stk) |
   JMPGE n \<Rightarrow> (if hd2 stk >= hd stk then i+1+n else i+1,s,tl2 stk))"
+*)  
 
 definition
   exec1 :: "instr list \<Rightarrow> config \<Rightarrow> config \<Rightarrow> bool"
@@ -99,7 +116,7 @@ appending code to the left or right of a program. *}
 
 lemma iexec_shift [simp]: 
   "((n+i',s',stk') = iexec x (n+i,s,stk)) = ((i',s',stk') = iexec x (i,s,stk))"
-by(auto split:instr.split)
+  by (cases "(x,(i,s,stk))" rule: iexec.cases) auto
 
 lemma exec1_appendR: "P \<turnstile> c \<rightarrow> c' \<Longrightarrow> P@P' \<turnstile> c \<rightarrow> c'"
 by (auto simp: exec1_def)

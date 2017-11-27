@@ -49,6 +49,8 @@ text{* Note that this @{text"<\<dots>>"} syntax works for any function space
 @{text"\<tau>\<^sub>1 \<Rightarrow> \<tau>\<^sub>2"} where @{text "\<tau>\<^sub>2"} has a @{text 0}. *}
 
 
+lemma null_state_app[simp]: "<> x = 0" by (auto simp: null_state_def)
+
 subsection "Constant Folding"
 
 text{* Evaluate constant subsexpressions: *}

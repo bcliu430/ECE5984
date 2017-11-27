@@ -1,6 +1,6 @@
 (* Author: Gerwin Klein, Tobias Nipkow *)
 
-theory Big_Step imports Com begin
+theory Big_Step imports Com "~~/src/HOL/Eisbach/Eisbach" begin
 
 subsection "Big-Step Semantics of Commands"
 
@@ -25,38 +25,93 @@ WhileTrue:
 \<Longrightarrow> (WHILE b DO c, s\<^sub>1) \<Rightarrow> s\<^sub>3"
 text_raw{*}%endsnip*}
 
-text_raw{*\snip{BigStepEx}{1}{2}{% *}
-schematic_goal ex: "(''x'' ::= N 5;; ''y'' ::= V ''x'', s) \<Rightarrow> ?t"
-apply(rule Seq)
-apply(rule Assign)
-apply simp
-apply(rule Assign)
-done
-text_raw{*}%endsnip*}
+text \<open>Derivation Tree: Forward\<close>
 
-thm ex[simplified]
+thm 
+  Seq[OF 
+    Assign[of "''x''" "N 5"]
+    Assign[of "''y''" "V ''x''"]
+  ]
 
-text{* We want to execute the big-step rules: *}
+text \<open>Using @{attribute simplified} to evaluate arithmetic expression\<close>
+thm 
+  Seq[OF 
+    Assign[of "''x''" "N 5"]
+    Assign[of "''y''" "V ''x''"],
+    simplified
+  ]
 
-code_pred big_step .
+locale DerTreeExample (* Isabelle's mechanism to make the following 
+  abbreviations only locally visible. Roughly a declaration of a "module" *)
+begin
+  abbreviation "b \<equiv> Less (V ''x'') (N 2)"
+  abbreviation "c \<equiv> ''x'' ::= Plus (V ''x'') (N 1)"
+  abbreviation "w \<equiv> WHILE b DO c"
+  
+  thm 
+    WhileTrue[of b "<>" c, OF _
+      Assign
+      WhileTrue[OF _ 
+        Assign 
+        WhileFalse
+      ], 
+    simplified]
+  
+  text \<open>Derivation Tree: Backwards\<close>
+  schematic_goal [simplified]: "(w,<>) \<Rightarrow> ?s"
+    apply (rule WhileTrue)
+      apply simp
+      apply (rule Assign)
+      apply (rule WhileTrue)
+        apply simp
+        apply (rule Assign)
+        apply (rule WhileFalse)
+          apply simp
+    done
+  
+  (* We can use [simplified] attribute to evaluate all these \<open>aval\<close>s *)  
+  schematic_goal [simplified]: "(w,<>) \<Rightarrow> ?s"
+    apply (rule WhileTrue)
+    apply simp
+    apply (rule Assign)
+    apply (rule WhileTrue)
+    apply simp
+    apply (rule Assign)
+    apply (rule WhileFalse)
+    apply simp
+    done
+  
+end    
+    
+text \<open>This looks quite canonical ... Indeed\<close>    
+    
+method If = (rule IfTrue, (simp;fail)) | (rule IfFalse, (simp;fail))
+method While = (rule WhileTrue, (simp;fail)) | (rule WhileFalse, (simp;fail))
+method BigStep = simp?; ((rule Skip Assign Seq) | If | While)
+method BigSteps = BigStep+
 
-text{* For inductive definitions we need command
-       \texttt{values} instead of \texttt{value}. *}
-
-values "{t. (SKIP, \<lambda>_. 0) \<Rightarrow> t}"
-
-text{* We need to translate the result state into a list
-to display it. *}
-
-values "{map t [''x''] |t. (SKIP, <''x'' := 42>) \<Rightarrow> t}"
-
-values "{map t [''x''] |t. (''x'' ::= N 2, <''x'' := 42>) \<Rightarrow> t}"
-
-values "{map t [''x'',''y''] |t.
-  (WHILE Less (V ''x'') (V ''y'') DO (''x'' ::= Plus (V ''x'') (N 5)),
-   <''x'' := 0, ''y'' := 13>) \<Rightarrow> t}"
-
-
+context DerTreeExample begin  
+  schematic_goal [simplified]: "(w,<>) \<Rightarrow> ?s"
+    by BigSteps
+      
+  abbreviation "square \<equiv>
+    ''a'' ::= N 0;;
+    ''b'' ::= N 1;;
+    WHILE Less (N 0) (V ''x'') DO (
+      ''a'' ::= Plus (V ''a'') (V ''b'');;
+      ''b'' ::= Plus (V ''b'') (N 2);;
+      ''x'' ::= Plus (V ''x'') (N (-1))
+    )
+  "
+    
+  schematic_goal [simplified]: "(square,<''x'':=5>) \<Rightarrow> ?s"
+    by BigSteps
+  
+  
+end  
+  
+(******** Back to slides ********)  
+  
 text{* Proof automation: *}
 
 text {* The introduction rules are good for automatically
@@ -109,6 +164,14 @@ inductive_cases WhileE[elim]: "(WHILE b DO c,s) \<Rightarrow> t"
 thm WhileE
 text{* Only [elim]: [elim!] would not terminate. *}
 
+(*declare WhileE[rule del]
+
+  note WhileE[rule del]
+
+  supply WhileE[rule del]
+
+*)
+  
 text{* An automatic example: *}
 
 lemma "(IF b THEN SKIP ELSE SKIP, s) \<Rightarrow> t \<Longrightarrow> t = s"
@@ -135,7 +198,7 @@ lemma assign_simp:
 
 text {* An example combining rule inversion and derivations *}
 lemma Seq_assoc:
-  "(c1;; c2;; c3, s) \<Rightarrow> s' \<longleftrightarrow> (c1;; (c2;; c3), s) \<Rightarrow> s'"
+  "((c1;; c2);; c3, s) \<Rightarrow> s' \<longleftrightarrow> (c1;; (c2;; c3), s) \<Rightarrow> s'"
 proof
   assume "(c1;; c2;; c3, s) \<Rightarrow> s'"
   then obtain s1 s2 where
@@ -153,7 +216,11 @@ next
 qed
 
 
+(****** Back to Slides ******)
+
+
 subsection "Command Equivalence"
+(****** NOT IN THIS LECTURE!   ******)
 
 text {*
   We call two statements @{text c} and @{text c'} equivalent wrt.\ the
@@ -265,12 +332,18 @@ lemma sim_refl:  "c \<sim> c" by simp
 lemma sim_sym:   "(c \<sim> c') = (c' \<sim> c)" by auto
 lemma sim_trans: "c \<sim> c' \<Longrightarrow> c' \<sim> c'' \<Longrightarrow> c \<sim> c''" by auto
 
+(***** END: NOT IN THIS LECTURE ******)
+
+
+
+
 subsection "Execution is deterministic"
 
 text {* This proof is automatic. *}
 
 theorem big_step_determ: "\<lbrakk> (c,s) \<Rightarrow> t; (c,s) \<Rightarrow> u \<rbrakk> \<Longrightarrow> u = t"
   by (induction arbitrary: u rule: big_step.induct) blast+
+    
 
 text {*
   This is the proof as you might present it in a lecture. The remaining

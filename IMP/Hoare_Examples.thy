@@ -51,19 +51,21 @@ subsubsection{* Proof by Hoare Logic *}
 text{* Note that we deal with sequences of commands from right to left,
 pulling back the postcondition towards the precondition. *}
 
-lemma "\<turnstile> {\<lambda>s. s ''x'' = n} ''y'' ::= N 0;; wsum {\<lambda>s. s ''y'' = sum n}"
-apply(rule Seq)
- prefer 2
- apply(rule While' [where P = "\<lambda>s. (s ''y'' = sum n - sum(s ''x''))"])
-  apply(rule Seq)
-   prefer 2
-   apply(rule Assign)
-  apply(rule Assign')
-  apply simp
- apply simp
-apply(rule Assign')
-apply simp
-done
+lemma "\<Turnstile> {\<lambda>s. s ''x'' = n} ''y'' ::= N 0;; wsum {\<lambda>s. s ''y'' = sum n}"
+  apply (rule conseq_pre_rule)
+    apply(rule seq_rule)
+      apply(rule while_rule [where P = "\<lambda>s. (s ''y'' = sum n - sum(s ''x''))"])
+        apply (rule seq_rule)
+          apply (rule assign_rule)
+          apply (rule assign_rule)
+          
+        apply simp (* vc 1: invariant preservation *)
+        apply simp (* vc 2: I \<and> \<not>b \<Longrightarrow> Q *)
+        
+      apply (rule assign_rule)
+      
+    apply simp (* vc 3: Precondition implies generated precondition *)
+  done
 
 text{* The proof is intentionally an apply script because it merely composes
 the rules of Hoare logic. Of course, in a few places side conditions have to

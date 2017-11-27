@@ -16,9 +16,7 @@ begin
     if there is a path of length n from x to y.
   *)
   
-inductive pol :: "('a \<Rightarrow> 'a \<Rightarrow> bool) \<Rightarrow> 'a \<Rightarrow> nat \<Rightarrow> 'a \<Rightarrow> bool" where
-  empty: "pol E a 0 a"
-  | step:"\<lbrakk>E a b; pol E b n c\<rbrakk> \<Longrightarrow> pol E a n c"
+  inductive pol :: "('a \<Rightarrow> 'a \<Rightarrow> bool) \<Rightarrow> 'a \<Rightarrow> nat \<Rightarrow> 'a \<Rightarrow> bool" 
     (* Add inductive specification here! *)
      
   (* Show that two paths can be appended. Their length is the sum of the two lengths.
@@ -26,9 +24,7 @@ inductive pol :: "('a \<Rightarrow> 'a \<Rightarrow> bool) \<Rightarrow> 'a \<Ri
       as rule induction will pick the first matching premise.
       If not, use rotate_tac.
   *)  
-lemma pol_append: "\<lbrakk>pol E x k y; pol E y l z\<rbrakk> \<Longrightarrow> pol E x (k+l) z"
-  apply (induction)
-    
+  lemma pol_append: "\<lbrakk>pol E x k y; pol E y l z\<rbrakk> \<Longrightarrow> pol E x (k+l) z"
     sorry
 
   (*
@@ -38,9 +34,7 @@ lemma pol_append: "\<lbrakk>pol E x k y; pol E y l z\<rbrakk> \<Longrightarrow> 
       
   fun fpol :: "('a \<Rightarrow> 'a \<Rightarrow> bool) \<Rightarrow> 'a \<Rightarrow> nat \<Rightarrow> 'a \<Rightarrow> bool"
     where
-    "fpol E a 0 b  \<longleftrightarrow> false"
-  | "fpol E a (n#ns) b \<longleftrightarrow> (\<exists>q. E a q b \<and> fpol L b ns c)"
-(* *)
+    "fpol _ _ _ _ = undefined"
 
   (* Show that the function is equivalent to the inductive version! 
 

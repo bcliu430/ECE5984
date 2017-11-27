@@ -24,13 +24,60 @@ abbreviation
 where "x \<rightarrow>* y == star small_step x y"
 
 subsection{* Executability *}
+context DerTreeExample begin
 
-code_pred small_step .
+thm star.refl[of small_step "(SKIP,_)"]
 
-values "{(c',map t [''x'',''y'',''z'']) |c' t.
-   (''x'' ::= V ''z'';; ''y'' ::= V ''x'',
-    <''x'' := 3, ''y'' := 7, ''z'' := 5>) \<rightarrow>* (c',t)}"
+(* Note: There is no SKIP rule, i.e., (SKIP,s) \<rightarrow> (SKIP,s),
+  b/c we use SKIP to indicate terminating state.
+  Only SKIP in sequential composition goes away with Seq1 rule.
+  
+  Hence, SKIP requires some special treatment in the methods below.
+*)
 
+method SmallStepSeq = ((rule Seq1 Seq2)+)? (* Apply Seq2 rules to reach leftmost command. 
+  If encountering SKIP;;_, discharge with Seq1 *)
+method SmallStepDerive = SmallStepSeq; (
+      rule Assign While
+    | (rule IfTrue, (simp;fail)) 
+    | (rule IfFalse, (simp; fail))
+    )
+
+method SmallStep = simp?; (rule star.refl[of small_step "(SKIP,_)"] 
+            | rule star.step, SmallStepDerive)
+            
+method SmallSteps = SmallStep+
+            
+  
+  
+schematic_goal [simplified]: "(square,<''x'':=2>) \<rightarrow>* ?s"
+  apply (rule star.step)
+  apply (rule Seq2)  
+  apply (rule Seq2)  
+   apply (rule Assign)  
+    
+  apply (rule star.step)
+  apply (rule Seq2)  
+   apply (rule Seq1) 
+
+  apply (rule star.step)
+  apply (rule Seq2)  
+   apply (rule Assign)  
+
+  apply (rule star.step)
+  apply (rule Seq1) 
+    oops
+
+schematic_goal "(square,<''x'':=25>) \<rightarrow>* ?s"
+  apply SmallSteps
+  done
+      
+      
+      
+schematic_goal [simplified]: "(square,<''x'':=5>) \<rightarrow>* ?s"
+  by (SmallSteps)
+  
+end
 
 subsection{* Proof infrastructure *}
 
@@ -151,6 +198,12 @@ next
     by(metis While seq_comp small_step.IfTrue star.step[of small_step])
 qed
 
+lemma "cs \<Rightarrow> t \<Longrightarrow> cs \<rightarrow>* (SKIP,t)"
+  by (induction rule: big_step.induct) (blast intro: seq_comp star.step)+
+  
+  
+  
+  
 lemma small1_big_continue:
   "cs \<rightarrow> cs' \<Longrightarrow> cs' \<Rightarrow> t \<Longrightarrow> cs \<Rightarrow> t"
 apply (induction arbitrary: t rule: small_step.induct)
@@ -159,7 +212,7 @@ done
 
 lemma small_to_big:
   "cs \<rightarrow>* (SKIP,t) \<Longrightarrow> cs \<Rightarrow> t"
-apply (induction cs "(SKIP,t)" rule: star.induct)
+  apply (induction cs "(SKIP,t)" rule: star.induct)
 apply (auto intro: small1_big_continue)
 done
 

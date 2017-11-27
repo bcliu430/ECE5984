@@ -1,126 +1,138 @@
-(* Author: Tobias Nipkow *)
+(* Author: Peter Lammich *)
 
-theory VCG imports Hoare begin
+theory VCG 
+imports Hoare_Examples "~~/src/HOL/Library/Rewrite"
+begin
 
-subsection "Verification Conditions"
+text \<open>We annotate the invariant to the WHILE-loop.
+  This annotation does not actually change the syntax tree or semantics.
+\<close>
 
-text{* Annotated commands: commands where loops are annotated with
-invariants. *}
+definition AWHILE :: "assn \<Rightarrow> bexp \<Rightarrow> com \<Rightarrow> com" ("(INVAR _ WHILE _/ DO _)"  [0, 0, 61] 61)
+  where "INVAR I WHILE b DO c \<equiv> WHILE b DO c"
 
-datatype acom =
-  Askip                  ("SKIP") |
-  Aassign vname aexp     ("(_ ::= _)" [1000, 61] 61) |
-  Aseq   acom acom       ("_;;/ _"  [60, 61] 60) |
-  Aif bexp acom acom     ("(IF _/ THEN _/ ELSE _)"  [0, 0, 61] 61) |
-  Awhile assn bexp acom  ("({_}/ WHILE _/ DO _)"  [0, 0, 61] 61)
+lemma annot_invar: "WHILE b DO c = INVAR I WHILE b DO c" by (simp add: AWHILE_def)
+  
+lemma awhile_rule:
+  assumes "\<Turnstile> {R} c {P}"
+  assumes "\<And>s. \<lbrakk>P s; bval b s\<rbrakk> \<Longrightarrow> R s"
+  assumes "\<And>s. \<lbrakk>P s; \<not>bval b s\<rbrakk> \<Longrightarrow> Q s"
+  shows "\<Turnstile> {P} INVAR P WHILE b DO c {Q}"
+  unfolding AWHILE_def by (rule while_rule[OF assms])
 
-notation com.SKIP ("SKIP")
+lemmas vcg_rules = skip_rule assign_rule seq_rule if_rule awhile_rule
 
-text{* Strip annotations: *}
+(* A first test *)
+lemma "\<Turnstile> {\<lambda>s. s ''x'' = n} ''y'' ::= N 0;; wsum {\<lambda>s. s ''y'' = sum n}"
+  apply (rewrite annot_invar[where I="\<lambda>s. (s ''y'' = sum n - sum(s ''x''))"])
+  apply (rule conseq_pre_rule)
+  apply (rule vcg_rules)
+  apply (rule vcg_rules)
+  apply (rule vcg_rules)
+  apply (rule vcg_rules)
+  apply (rule vcg_rules)
+  apply simp
+  apply simp
+  apply (rule vcg_rules)
+  apply simp
+  done  
+    
+lemma "\<Turnstile> {\<lambda>s. s ''x'' = n} ''y'' ::= N 0;; wsum {\<lambda>s. s ''y'' = sum n}"
+  apply (rewrite annot_invar[where I="\<lambda>s. (s ''y'' = sum n - sum(s ''x''))"])
+  apply (rule conseq_pre_rule)
+  apply (rule vcg_rules | simp)+
+  done
 
-fun strip :: "acom \<Rightarrow> com" where
-"strip SKIP = SKIP" |
-"strip (x ::= a) = (x ::= a)" |
-"strip (C\<^sub>1;; C\<^sub>2) = (strip C\<^sub>1;; strip C\<^sub>2)" |
-"strip (IF b THEN C\<^sub>1 ELSE C\<^sub>2) = (IF b THEN strip C\<^sub>1 ELSE strip C\<^sub>2)" |
-"strip ({_} WHILE b DO C) = (WHILE b DO strip C)"
-
-text{* Weakest precondition from annotated commands: *}
-
-fun pre :: "acom \<Rightarrow> assn \<Rightarrow> assn" where
-"pre SKIP Q = Q" |
-"pre (x ::= a) Q = (\<lambda>s. Q(s(x := aval a s)))" |
-"pre (C\<^sub>1;; C\<^sub>2) Q = pre C\<^sub>1 (pre C\<^sub>2 Q)" |
-"pre (IF b THEN C\<^sub>1 ELSE C\<^sub>2) Q =
-  (\<lambda>s. if bval b s then pre C\<^sub>1 Q s else pre C\<^sub>2 Q s)" |
-"pre ({I} WHILE b DO C) Q = I"
-
-text{* Verification condition: *}
-
-fun vc :: "acom \<Rightarrow> assn \<Rightarrow> bool" where
-"vc SKIP Q = True" |
-"vc (x ::= a) Q = True" |
-"vc (C\<^sub>1;; C\<^sub>2) Q = (vc C\<^sub>1 (pre C\<^sub>2 Q) \<and> vc C\<^sub>2 Q)" |
-"vc (IF b THEN C\<^sub>1 ELSE C\<^sub>2) Q = (vc C\<^sub>1 Q \<and> vc C\<^sub>2 Q)" |
-"vc ({I} WHILE b DO C) Q =
-  ((\<forall>s. (I s \<and> bval b s \<longrightarrow> pre C I s) \<and>
-        (I s \<and> \<not> bval b s \<longrightarrow> Q s)) \<and>
-    vc C I)"
-
-
-text {* Soundness: *}
-
-lemma vc_sound: "vc C Q \<Longrightarrow> \<turnstile> {pre C Q} strip C {Q}"
-proof(induction C arbitrary: Q)
-  case (Awhile I b C)
-  show ?case
-  proof(simp, rule While')
-    from `vc (Awhile I b C) Q`
-    have vc: "vc C I" and IQ: "\<forall>s. I s \<and> \<not> bval b s \<longrightarrow> Q s" and
-         pre: "\<forall>s. I s \<and> bval b s \<longrightarrow> pre C I s" by simp_all
-    have "\<turnstile> {pre C I} strip C {I}" by(rule Awhile.IH[OF vc])
-    with pre show "\<turnstile> {\<lambda>s. I s \<and> bval b s} strip C {I}"
-      by(rule strengthen_pre)
-    show "\<forall>s. I s \<and> \<not>bval b s \<longrightarrow> Q s" by(rule IQ)
-  qed
-qed (auto intro: hoare.conseq)
-
-corollary vc_sound':
-  "\<lbrakk> vc C Q; \<forall>s. P s \<longrightarrow> pre C Q s \<rbrakk> \<Longrightarrow> \<turnstile> {P} strip C {Q}"
-by (metis strengthen_pre vc_sound)
+  
+(* Automating the VCG *)  
+method vcg_step = rule vcg_rules | clarsimp
+method vcg = rule conseq_pre_rule, vcg_step+
 
 
-text{* Completeness: *}
+(* Examples *)
 
-lemma pre_mono:
-  "\<forall>s. P s \<longrightarrow> P' s \<Longrightarrow> pre C P s \<Longrightarrow> pre C P' s"
-proof (induction C arbitrary: P P' s)
-  case Aseq thus ?case by simp metis
-qed simp_all
+(* For simple invariants, everything can be done automatically *)
+lemma "\<Turnstile> {\<lambda>s. s ''x'' = n} ''y'' ::= N 0;; wsum {\<lambda>s. s ''y'' = sum n}"
+  apply (rewrite annot_invar[where I="\<lambda>s. (s ''y'' = sum n - sum(s ''x''))"])
+  by vcg
 
-lemma vc_mono:
-  "\<forall>s. P s \<longrightarrow> P' s \<Longrightarrow> vc C P \<Longrightarrow> vc C P'"
-proof(induction C arbitrary: P P')
-  case Aseq thus ?case by simp (metis pre_mono)
-qed simp_all
+(* If invariants get more complicated, automatic proof may not scale or be 
+  hard to develop and read *)  
+  
+lemma "\<Turnstile> {\<lambda>s. s ''x'' = x\<^sub>0 \<and> x\<^sub>0\<ge>0} DerTreeExample.square { \<lambda>s. s ''a'' = x\<^sub>0\<^sup>2 }"
+  apply (rewrite annot_invar[where I="\<lambda>s. 
+    let c = x\<^sub>0-s ''x'' in 
+       0\<le>s ''x'' \<and> 0\<le>c \<and> s ''b'' = 1+2*c \<and> s ''a'' = c\<^sup>2"])
+  supply power2_eq_square[simp] algebra_simps[simp]
+  apply vcg
+  done
+  
+(* More manual proof. Better readable and simpler to write *)  
+  
+lemma "\<Turnstile> {\<lambda>s. s ''x'' = x\<^sub>0 \<and> x\<^sub>0\<ge>0} DerTreeExample.square { \<lambda>s. s ''a'' = x\<^sub>0\<^sup>2 }"
+proof -
+  define I where "I x a b \<equiv> let c=x\<^sub>0-x in 0\<le>x\<^sub>0 \<and> 0\<le>x \<and> 0\<le>c \<and> b=1+2*c \<and> a=c\<^sup>2"
+    for x a b
 
-lemma vc_complete:
- "\<turnstile> {P}c{Q} \<Longrightarrow> \<exists>C. strip C = c \<and> vc C Q \<and> (\<forall>s. P s \<longrightarrow> pre C Q s)"
-  (is "_ \<Longrightarrow> \<exists>C. ?G P c Q C")
-proof (induction rule: hoare.induct)
-  case Skip
-  show ?case (is "\<exists>C. ?C C")
-  proof show "?C Askip" by simp qed
-next
-  case (Assign P a x)
-  show ?case (is "\<exists>C. ?C C")
-  proof show "?C(Aassign x a)" by simp qed
-next
-  case (Seq P c1 Q c2 R)
-  from Seq.IH obtain C1 where ih1: "?G P c1 Q C1" by blast
-  from Seq.IH obtain C2 where ih2: "?G Q c2 R C2" by blast
-  show ?case (is "\<exists>C. ?C C")
-  proof
-    show "?C(Aseq C1 C2)"
-      using ih1 ih2 by (fastforce elim!: pre_mono vc_mono)
-  qed
-next
-  case (If P b c1 Q c2)
-  from If.IH obtain C1 where ih1: "?G (\<lambda>s. P s \<and> bval b s) c1 Q C1"
-    by blast
-  from If.IH obtain C2 where ih2: "?G (\<lambda>s. P s \<and> \<not>bval b s) c2 Q C2"
-    by blast
-  show ?case (is "\<exists>C. ?C C")
-  proof
-    show "?C(Aif b C1 C2)" using ih1 ih2 by simp
-  qed
-next
-  case (While P b c)
-  from While.IH obtain C where ih: "?G (\<lambda>s. P s \<and> bval b s) c P C" by blast
-  show ?case (is "\<exists>C. ?C C")
-  proof show "?C(Awhile P b C)" using ih by simp qed
-next
-  case conseq thus ?case by(fast elim!: pre_mono vc_mono)
-qed
+  have [simp]: "I (x-1) (a+b) (b+2)" if "I x a b" "0<x" for x a b
+    using that unfolding I_def by (auto simp: algebra_simps power2_eq_square)
 
+  have [simp]: "a=x\<^sub>0\<^sup>2" if "I x a b" "\<not>0<x" for x a b
+    using that unfolding I_def by (auto simp: algebra_simps power2_eq_square)
+
+  have [simp]: "I x\<^sub>0 0 1" if "0\<le>x\<^sub>0"
+    using that unfolding I_def by (auto simp: algebra_simps power2_eq_square)
+      
+  show ?thesis
+    apply (rewrite annot_invar[where I="\<lambda>s. I (s ''x'') (s ''a'') (s ''b'')"])
+    apply vcg
+    done
+      
+qed    
+  
+  
+
+(* More contrieved example *)
+abbreviation "IMP_div \<equiv> 
+  ''q'' ::= N 0;;
+  ''c'' ::= N 0;;
+  WHILE Not (Less ((V ''x'')) (V ''c'')) DO (
+    ''c'' ::= Plus (V ''c'') (V ''y'');;
+    ''q'' ::= Plus (V ''q'') (N 1)
+  );;
+  ''q'' ::= Plus (V ''q'') (N (-1))
+"
+
+(* As alternative to define the invariants inside the proof, we can also
+  use a definition, and prove lemmas.
+*)
+
+definition div_invar :: "int \<Rightarrow> int \<Rightarrow> int \<Rightarrow> int \<Rightarrow> bool" 
+  where "div_invar x y c q \<equiv> c = q*y \<and> c \<le> x+y \<and> x>0 \<and> y>0 \<and> q\<ge>0"
+
+lemma div_invar1: "\<lbrakk>div_invar x y c q; \<not>x<c \<rbrakk> \<Longrightarrow> div_invar x y (c+y) (q+1)" 
+  unfolding div_invar_def 
+  by (auto simp: algebra_simps)
+
+lemma div_invar2: "\<lbrakk>div_invar x y c q; x < c \<rbrakk> \<Longrightarrow> q - 1 = x div y"
+  unfolding div_invar_def 
+  apply (auto simp: algebra_simps)
+  by (smt Divides.pos_mod_sign cancel_div_mod_rules(2) div_add_self2 mult.commute nonzero_mult_div_cancel_right zdiv_mono1)
+
+lemma div_invar3: "\<lbrakk>x>0; y>0\<rbrakk> \<Longrightarrow> div_invar x y 0 0" 
+  unfolding div_invar_def 
+  by (auto simp: algebra_simps)
+
+lemma "\<Turnstile> {\<lambda>s. s ''x'' = x \<and> s ''y'' = y \<and> x>0 \<and> y>0} IMP_div {\<lambda>s. s ''q'' = x div y}"  
+  apply (rewrite annot_invar[where I="\<lambda>s. s ''x'' = x \<and> s ''y'' = y \<and> div_invar x y (s ''c'') (s ''q'')"])
+  supply div_invar1[simp]
+  supply div_invar2[simp]
+  supply div_invar3[simp]
+  apply vcg  
+  done
+  
+  
+  
+  
+  
 end

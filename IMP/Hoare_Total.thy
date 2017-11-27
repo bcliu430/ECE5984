@@ -27,7 +27,7 @@ where
 
 Skip:  "\<turnstile>\<^sub>t {P} SKIP {P}"  |
 
-Assign:  "\<turnstile>\<^sub>t {\<lambda>s. P(s[a/x])} x::=a {P}"  |
+Assign:  "\<turnstile>\<^sub>t {\<lambda>s. P(s(x:=aval a s))} x::=a {P}"  |
 
 Seq: "\<lbrakk> \<turnstile>\<^sub>t {P\<^sub>1} c\<^sub>1 {P\<^sub>2}; \<turnstile>\<^sub>t {P\<^sub>2} c\<^sub>2 {P\<^sub>3} \<rbrakk> \<Longrightarrow> \<turnstile>\<^sub>t {P\<^sub>1} c\<^sub>1;;c\<^sub>2 {P\<^sub>3}"  |
 
@@ -62,7 +62,7 @@ lemma weaken_post:
   "\<lbrakk> \<turnstile>\<^sub>t {P} c {Q};  \<forall>s. Q s \<longrightarrow> Q' s \<rbrakk> \<Longrightarrow>  \<turnstile>\<^sub>t {P} c {Q'}"
 by (metis conseq)
 
-lemma Assign': "\<forall>s. P s \<longrightarrow> Q(s[a/x]) \<Longrightarrow> \<turnstile>\<^sub>t {P} x ::= a {Q}"
+lemma Assign': "\<forall>s. P s \<longrightarrow> Q(s(x:=aval a s)) \<Longrightarrow> \<turnstile>\<^sub>t {P} x ::= a {Q}"
 by (simp add: strengthen_pre[OF _ Assign])
 
 lemma While_fun':

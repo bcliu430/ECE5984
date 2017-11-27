@@ -31,14 +31,12 @@ datatype inst =
 *)    
 type_synonym rstate = "reg \<Rightarrow> val"
 
-(*                         
+(*
   Specify the semantics for executing a single instruction! 
   Note: As there is no store instruction, the variable state is not modified.
 *)  
 fun exec1 :: "inst \<Rightarrow> state \<Rightarrow> rstate \<Rightarrow> rstate" where
-  "exec1 (LOAD n r) s rs = (rs (r:=rs(r n)))"
-| "exec1 (MOVI v r) s rs=  ()"
-| "exec1 (ADD r1 r2) s rs = (rs (reg:=rs(reg r1+r2)))"  
+  "exec1 _ _ _ = undefined"
 
 (*
   Specify the semantics of executing a list of instructions!

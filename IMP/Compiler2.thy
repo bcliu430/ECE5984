@@ -117,7 +117,7 @@ proof
     next
       assume "i \<noteq> 0" 
       with isuccs 
-      have "?isuccs p xs (1+n) (i - 1)" by auto
+      have "?isuccs p xs (1+n) (i - 1)" by (auto simp: nat_diff_distrib')
       hence "p \<in> ?xs" unfolding succs_def by blast
       thus ?thesis .. 
     qed
@@ -133,7 +133,8 @@ proof
       then obtain i where "?isuccs p xs (1+n) i"
         unfolding succs_def by auto
       hence "?isuccs p (x#xs) n (1+i)"
-        by (simp add: algebra_simps)
+        apply (simp add: algebra_simps)
+        by (metis One_nat_def Suc_nat_eq_nat_zadd1 diff_Suc_1)
       thus ?thesis unfolding succs_def by blast
     qed
   }  
@@ -143,7 +144,9 @@ qed
 lemma succs_iexec1:
   assumes "c' = iexec (P!!i) (i,s,stk)" "0 \<le> i" "i < size P"
   shows "fst c' \<in> succs P 0"
-  using assms by (auto simp: succs_def isuccs_def split: instr.split)
+  using assms 
+  apply (cases "((P!!i),(i,s,stk))" rule: iexec.cases)
+  by (auto simp: succs_def isuccs_def)
 
 lemma succs_shift:
   "(p - n \<in> succs P 0) = (p \<in> succs P n)" 
@@ -169,7 +172,7 @@ lemma exits_append [simp]:
   
 lemma exits_single:
   "exits [x] = isuccs x 0 - {0}"
-  by (auto simp: exits_def succs_def)
+  by (auto simp: exits_def succs_def order.order_iff_strict) 
   
 lemma exits_Cons:
   "exits (x # xs) = (isuccs x 0 - {0}) \<union> (op + 1) ` exits xs - 
@@ -266,7 +269,13 @@ lemma exec1_split:
   shows
   "P @ c @ P' \<turnstile> (size P + i, s) \<rightarrow> (j,s') \<Longrightarrow> 0 \<le> i \<Longrightarrow> i < size c \<Longrightarrow> 
   c \<turnstile> (i,s) \<rightarrow> (j - size P, s')"
-  by (auto split: instr.splits simp: exec1_def)
+  unfolding exec1_def
+proof (clarify, goal_cases)
+  case (1 i' s' stk')
+  then show ?case
+    apply (cases "((P @ c @ P') !! (size P + i), (size P + i, s', stk'))" rule: iexec.cases)
+    by auto
+qed
 
 lemma exec_n_split:
   fixes i j :: int

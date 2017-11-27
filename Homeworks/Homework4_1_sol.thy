@@ -1,12 +1,6 @@
-theory Homework4_1
-imports "../IMP/AExp" (* Replace by your path to AExp *)
+theory Homework4_1_sol
+imports "../IMP/AExp"
 begin
-
-  (*
-    ISSUED: Wednesday, October 11
-    DUE: Wednesday, October 18, 11:59pm
-    POINTS: 5
-  *)
 
 (*
   The objective of this homework is to compile to a register machine.
@@ -31,28 +25,34 @@ datatype inst =
 *)    
 type_synonym rstate = "reg \<Rightarrow> val"
 
-(*                         
-  Specify the semantics for executing a single instruction! 
+(*
+  Specify the semantics for executing a single instruction. 
   Note: As there is no store instruction, the variable state is not modified.
 *)  
 fun exec1 :: "inst \<Rightarrow> state \<Rightarrow> rstate \<Rightarrow> rstate" where
-  "exec1 (LOAD n r) s rs = (rs (r:=(s(n))))"
-| "exec1 (MOVI v r) s rs=  (rs (r:=v))"
-| "exec1 (ADD r1 r2) s rs = (rs (r1:=rs(r1)+rs(r2)))"  
+(*<*)  
+  "exec1 (MOVI v r) s t = t(r:=v)"
+| "exec1 (LOAD x r) s t = t(r:=s x)"
+| "exec1 (ADD r1 r2) s t = t(r1:=t r1 + t r2)"
+(*>*)  
 
 (*
-  Specify the semantics of executing a list of instructions!
+  Specify the semantics of executing a list of instructions
 *)  
 fun exec :: "inst list \<Rightarrow> state \<Rightarrow> rstate \<Rightarrow> rstate" where
-  "exec [] _ rs = rs"|
-  "exec (i#is) s rs = exec is s (exec1 i s rs)"
+(*<*)  
+  "exec [] s t = t"
+| "exec (i#is) s t = exec is s (exec1 i s t)"  
+(*>*)  
   
 lemma exec_append[simp]:
   "exec (is1@is2) s t = exec is2 s (exec is1 s t)"
-  apply (induction is1 arbitrary:s t)
-  apply (auto)
-  done
-  
+  (* Prove that! *)
+(*<*)  
+apply(induction is1 arbitrary: t)
+apply (auto)
+done
+(*>*)
 
 (*
   In order to compile an arithmetic expression, the intermediate results must be assigned 
@@ -78,12 +78,13 @@ lemma exec_append[simp]:
 *)  
   
 hide_const (open) comp  
-  
-(* Implement the compiler! *)  
 fun comp :: "aexp \<Rightarrow> reg \<Rightarrow> inst list" where
-    "comp (V v) r = [LOAD v r]"
-  | "comp (N n) r  = [MOVI n r]"
-  | "comp (Plus a_1 a_2) r = (comp a_1 r) @ (comp a_2 (r+1))@[ADD r (r+1)]"
+(*<*)  
+  "comp (N v) r = [MOVI v r]"
+| "comp (V x) r = [LOAD x r]"  
+| "comp (Plus e1 e2) r = comp e1 r @ comp e2 (r+1) @ [ADD r (r+1)]"
+(*>*)  
+  
 (* Test case *)
   
 value "comp (Plus (Plus (N 3) (V ''x'')) (Plus (N 1) (V ''y''))) 1 = 
@@ -93,16 +94,34 @@ value "comp (Plus (Plus (N 3) (V ''x'')) (Plus (N 1) (V ''y''))) 1 =
   
   
 (* Show that the produced code does not change registers less than r! *)  
-lemma comp_preserves_regs[simp]: "r'<r \<Longrightarrow> exec (comp a r) s t r' = t r'"
-  apply(induction r  arbitrary: a r' s t)
-   apply (auto)
+lemma [simp]: "r'<r \<Longrightarrow> exec (comp a r) s t r' = t r'"
+(*<*)  
+  apply (induction a arbitrary: t r)
+  apply auto
+  done  
+(*>*)    
   
-  sorry
-  
-(* Show that the produced code places the correct result in register r! *)
-lemma comp_correct: "exec (comp a r) s t r = aval a s"
-  apply(induction a arbitrary: r s t r)
-  apply(auto)
+(* Show that the produced code places the correct result in register r! *)    
+lemma "exec (comp a r) s t r = aval a s"
+(*<*)  
+  apply (induction a arbitrary: t r)
+  apply (auto)
   done
+(*>*)    
   
+(* Note: Generalizing over more variables than necessary might sometimes work, but, in general, 
+  might confuse auto, etc ... they will not solve the proof, and it gets more complicated.
+  
+  You can even generalize over variables that do not occur in the goal ...
+  Of course that makes no sense, and they will be highlighted by the IDE ... 
+  
+  *)
+lemma "exec (comp a r) s t r = aval a s"
+  apply (induction a arbitrary: t r s variableThatDoesNotOccurInGoal)
+  apply (auto)
+  done
+
+
+
+
 end
