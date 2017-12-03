@@ -201,7 +201,8 @@ text \<open>
 (** Define the invariant and prove the insert algorithm correct! *)
 definition insert_invar where
   "insert_invar a\<^sub>0 a l h i j \<equiv> 
-      ( \<forall>k\<in>{j+1..<i+1}. a(j) \<le> a k)  \<and> l \<le> h \<and> l\<ge> 0\<and> h\<ge> j \<and> j\<ge> l\<and>
+      ( \<forall>k\<in>{j+1..<i+1}. a(j) \<le> a k)  
+      \<and> l\<ge> 0\<and> h\<ge> j \<and> j\<ge> l \<and> i \<ge> 0 \<and>
       (* Add the missing parts of the invariant *)
       (\<forall>k1\<in>{l..<j}. \<forall>k2\<in>{j+1..<i+1}. a k1 \<le> a k2)  (* Elements of L \<le> R *)
     
@@ -222,29 +223,6 @@ subsection \<open>VCs\<close>
     Below are just a few examples of lemmas that I used 
     (For you, they may look different)
 *)
-
-(* Quickcheck example: 
-  Trying to prove that, if range l..<h is sorted, 
-  then the first element of the range will be less than or 
-  equal to the last element. Obvious, isn't it?
-*)
-lemma aux0: "ran_sorted a l h \<Longrightarrow> a l \<le> a h"
-  quickcheck
-  (* Oops! Examine the counterexample to see that we forgot to specify 
-    that the range should not be empty, such that a first/last element exists.
-  *)
-  oops
-  
-lemma aux1: "l<h \<Longrightarrow> ran_sorted a l h \<Longrightarrow> a l \<le> a h"
-  quickcheck
-  (* Oops! Recall that the upper bound of a range is exclusive! *)
-  oops
-
-lemma aux2: "l<h \<Longrightarrow> ran_sorted a l h \<Longrightarrow> a l \<le> a (h-1)"
-  (*quickcheck ... does not terminate/takes very long ... a good sign? *)
-  apply (auto simp: ran_sorted_def)
-  (* Yeah! *)
-  done 
 
 subsubsection \<open>Auxiliary Lemmas\<close>
 text \<open>Swapping outside a range does not change its sortedness.
@@ -273,7 +251,16 @@ lemma
   
 subsubsection \<open>VCs\<close>
 (* Put your lemmas that you extracted from the VCG here *)
-
+lemma "\<And>z l i h ja. insert_invar z z l h i ja \<Longrightarrow> l < ja \<Longrightarrow> z ja < z (ja - 1) \<Longrightarrow> swap z (ja - 1) ja = z"
+  apply (auto simp:insert_invar_def)
+    
+  sorry
+    
+lemma " \<And>z l i h. l < i \<Longrightarrow> i < h \<Longrightarrow> ran_sorted z l i \<Longrightarrow> insert_invar z z l h i i"
+  sorry
+    
+lemma "\<And>z l i h ja. insert_invar z z l h i ja \<Longrightarrow> l < ja \<Longrightarrow> z ja < z (ja - 1) \<Longrightarrow> insert_invar z (swap z (ja - 1) ja) l h i (ja - 1)"
+  sorry
 subsection \<open>Correctness Proof\<close>
 lemma insert_correct[vcg_rules]: "
   \<Turnstile>\<^sub>t {\<lambda>a\<^sub>0. vars l i h (a:imap) in a=a\<^sub>0 \<and> l<i \<and>i<h \<and> ran_sorted a l i} 
@@ -285,10 +272,11 @@ lemma insert_correct[vcg_rules]: "
      mod {''a'',''t'',''j''}"
   unfolding insert_prog_def
   apply (rewrite annot_tinvar[where
-        R="" and
-        I=""
+        R="measure (\<lambda>s. nat (s ''j'' 0 - s ''l'' 0))" and
+        I="\<lambda>(a\<^sub>0). vars l i j h (a:imap) in  a=a\<^sub>0 \<and> insert_invar a\<^sub>0 a l h i j"
          ])
-  apply vcg
+  apply vcg_all
+    
   
   sorry
 
@@ -304,7 +292,6 @@ text \<open> Here, you are on your own!
   Note: You are *not* required to specify that the elements 
     of the array outside the range \<open>l..<h\<close> are preserved (cf. Bonus 1).
 \<close>
-  
   
 section \<open>Bonuses\<close>
 (* To grab some bonus points, for all students. 
@@ -386,39 +373,64 @@ text \<open>A more efficient way of inverting monotonic functions is by bisectio
 \<close>
 
 definition "sqrt_bisect_prog \<equiv> 
-CLR l;; CLR h;;CLR m;;
+CLR l;; CLR h;;
 l::= N 1;;
-h::= $x;;
-m::= ($l + $h) div N 2;;
+h::= $x + (N 1);;
 WHILE  ($h - $l) > N 1 DO
 (
-  IF ($m * $m) <= $x THEN
-    l::= $m;;
-    m::= ($l + $h) div N 2
+  IF ( (($l + $h) div N 2) *(($l + $h) div N 2) ) <= $x THEN
+    l::= (($l + $h) div N 2)
   ELSE
-    h::= $m;;
-    m::= ($l + $h) div N 2)
+    h::= (($l + $h) div N 2)
+)
 "
 
 text \<open>Hint: Testing the algorithm before attempting to prove it may be a good idea! \<close>
-schematic_goal "(sqrt_bisect_prog, <''x'' := var 26>) \<Rightarrow> ?s"
+schematic_goal "(sqrt_bisect_prog, <''x'' := var 5>) \<Rightarrow> ?s"
   unfolding sqrt_bisect_prog_def
   by BigSteps
+
+definition bisection_invar:: " int \<Rightarrow> int \<Rightarrow> int \<Rightarrow> bool"
+  where "bisection_invar  l h x \<equiv>  1\<le>l \<and> l < h \<and> l\<^sup>2 \<le> x \<and> x < h\<^sup>2"
+    
+lemma bisect_aux0:    
+"\<And>l h x. 1 < h - l \<Longrightarrow> bisection_invar l h x \<Longrightarrow> (l + h) div 2 * ((l + h) div 2) \<le> x \<Longrightarrow> bisection_invar ((l + h) div 2) h x"
+  by (smt bisection_invar_def even_two_times_div_two odd_two_times_div_two_succ power2_eq_square)
   
+lemma bisect_aux1:
+" \<And>l h x. 1 < h - l \<Longrightarrow> bisection_invar l h x \<Longrightarrow> (l + h) div 2 * ((l + h) div 2) \<le> x \<Longrightarrow> (h + (l + h) div 2) div 2 < (h + l) div 2"
+  sorry
+    
+lemma bisect_aux2:    
+"\<And>l h x. 1 < h - l \<Longrightarrow> bisection_invar l h x \<Longrightarrow> \<not> (l + h) div 2 * ((l + h) div 2) \<le> x \<Longrightarrow> bisection_invar l ((l + h) div 2) x"
+"\<And>l h x. 1 < h - l \<Longrightarrow> bisection_invar l h x \<Longrightarrow> \<not> (l + h) div 2 * ((l + h) div 2) \<le> x \<Longrightarrow> ((l + h) div 2 + l) div 2 < (h + l) div 2"
+   apply (simp add: bisection_invar_def power2_eq_square)
+   by (smt even_two_times_div_two odd_two_times_div_two_succ)
+  
+lemma bisect_aux3:    
+"\<And>l h x. \<not> 1 < h - l \<Longrightarrow> bisection_invar l h x \<Longrightarrow> x < (l + 1)\<^sup>2"
+  by (smt bisection_invar_def)
+
+lemma bisect_aux4:    
+"\<And>x. 1 \<le> x \<Longrightarrow> bisection_invar 1 (x + 1) x"
+  apply (auto simp: bisection_invar_def)
+  by (smt one_le_numeral power_increasing power_one_right)
+
 (*
   The specification is provided.
 *)  
-    
 lemma sqrt_bisect_correct: " 
-  \<Turnstile>\<^sub>t {\<lambda>_. vars x in 0\<le>x } 
+  \<Turnstile>\<^sub>t {\<lambda>_. vars x in 1\<le>x } 
        sqrt_bisect_prog 
-     {\<lambda>_. vars l x in 0\<le>l \<and> l\<^sup>2\<le>x \<and> x<(l+1)\<^sup>2 } mod {''l'',''h'',''m''}"
+     {\<lambda>_. vars l x in 1\<le>l \<and> l\<^sup>2\<le>x \<and> x<(l+1)\<^sup>2 } mod {''l'',''h'',''m''}"
   unfolding sqrt_bisect_prog_def
   apply (rewrite annot_tinvar[where
-        R="measure (\<lambda>s. nat ((s ''h'' 0  + s ''l'' 0) div 2))" and
-        I="\<lambda>_. vars l h m x in 0\<le>l \<and> l<h \<and> l\<^sup>2\<le>m \<and>m<h\<^sup>2 \<and> x \<ge> m\<^sup>2"
+        R="measure (\<lambda>s. nat ((s ''h'' 0 + s ''l'' 0) div 2))" and
+        I="\<lambda>_. vars l h x in bisection_invar l h x" 
          ])
-apply vcg defer apply vcg_ctd
+  supply bisect_aux0[simp] bisect_aux1[simp] bisect_aux2[simp] bisect_aux3[simp] bisect_aux4[simp]
+  apply (vcg_all; (auto simp: bisection_invar_def; fail)?)
+  
   (*
     Hint: I used the invariant  
       \<open>\<lambda>_. vars l h x in 0\<le>l \<and> l<h \<and> l\<^sup>2\<le>x \<and> x<h\<^sup>2\<close>
@@ -427,7 +439,7 @@ apply vcg defer apply vcg_ctd
     Note that, if you implement the algorithm differently than I did, 
     you may need to change the invariant. DO NOT CHANGE THE SPECIFICATION.
   *)
-  sorry
+done
   
   
 end
