@@ -386,7 +386,7 @@ WHILE  ($h - $l) > N 1 DO
 "
 
 text \<open>Hint: Testing the algorithm before attempting to prove it may be a good idea! \<close>
-schematic_goal "(sqrt_bisect_prog, <''x'' := var 5>) \<Rightarrow> ?s"
+schematic_goal "(sqrt_bisect_prog, <''x'' := var 1>) \<Rightarrow> ?s"
   unfolding sqrt_bisect_prog_def
   by BigSteps
 
@@ -394,28 +394,26 @@ definition bisection_invar:: " int \<Rightarrow> int \<Rightarrow> int \<Rightar
   where "bisection_invar  l h x \<equiv>  1\<le>l \<and> l < h \<and> l\<^sup>2 \<le> x \<and> x < h\<^sup>2"
     
 lemma bisect_aux0:    
-"\<And>l h x. 1 < h - l \<Longrightarrow> bisection_invar l h x \<Longrightarrow> (l + h) div 2 * ((l + h) div 2) \<le> x \<Longrightarrow> bisection_invar ((l + h) div 2) h x"
-  by (smt bisection_invar_def even_two_times_div_two odd_two_times_div_two_succ power2_eq_square)
+" \<And>l h x. 1 < h - l \<Longrightarrow>
+             bisection_invar l h x \<Longrightarrow> (l + h) div 2 * ((l + h) div 2) \<le> x \<Longrightarrow> bisection_invar ((l + h) div 2) h x"
+  apply (auto simp:bisection_invar_def)
+  by (simp add: power2_eq_square)
   
 lemma bisect_aux1:
-" \<And>l h x. 1 < h - l \<Longrightarrow> bisection_invar l h x \<Longrightarrow> (l + h) div 2 * ((l + h) div 2) \<le> x \<Longrightarrow> (h + (l + h) div 2) div 2 < (h + l) div 2"
-  sorry
-    
-lemma bisect_aux2:    
-"\<And>l h x. 1 < h - l \<Longrightarrow> bisection_invar l h x \<Longrightarrow> \<not> (l + h) div 2 * ((l + h) div 2) \<le> x \<Longrightarrow> bisection_invar l ((l + h) div 2) x"
-"\<And>l h x. 1 < h - l \<Longrightarrow> bisection_invar l h x \<Longrightarrow> \<not> (l + h) div 2 * ((l + h) div 2) \<le> x \<Longrightarrow> ((l + h) div 2 + l) div 2 < (h + l) div 2"
-   apply (simp add: bisection_invar_def power2_eq_square)
-   by (smt even_two_times_div_two odd_two_times_div_two_succ)
+"\<And>l h x. 1 < h - l \<Longrightarrow>
+             bisection_invar l h x \<Longrightarrow> \<not> (l + h) div 2 * ((l + h) div 2) \<le> x \<Longrightarrow> bisection_invar l ((l + h) div 2) x"
+  apply (auto simp:bisection_invar_def)
+  by (simp add: power2_eq_square)
   
-lemma bisect_aux3:    
-"\<And>l h x. \<not> 1 < h - l \<Longrightarrow> bisection_invar l h x \<Longrightarrow> x < (l + 1)\<^sup>2"
-  by (smt bisection_invar_def)
+lemma bisect_aux2:    
+" \<And>l h x. \<not> 1 < h - l \<Longrightarrow> bisection_invar l h x \<Longrightarrow> x < (l + 1)\<^sup>2"
+  apply (auto simp:bisection_invar_def)
+  by smt
 
-lemma bisect_aux4:    
-"\<And>x. 1 \<le> x \<Longrightarrow> bisection_invar 1 (x + 1) x"
-  apply (auto simp: bisection_invar_def)
-  by (smt one_le_numeral power_increasing power_one_right)
-
+lemma bisect_aux3:
+" \<And>x. 1 \<le> x \<Longrightarrow> bisection_invar 1 (x + 1) x "
+  apply (auto simp:bisection_invar_def)
+  by (smt one_less_numeral_iff power_one_right power_strict_increasing semiring_norm(76))
 (*
   The specification is provided.
 *)  
@@ -425,11 +423,12 @@ lemma sqrt_bisect_correct: "
      {\<lambda>_. vars l x in 1\<le>l \<and> l\<^sup>2\<le>x \<and> x<(l+1)\<^sup>2 } mod {''l'',''h'',''m''}"
   unfolding sqrt_bisect_prog_def
   apply (rewrite annot_tinvar[where
-        R="measure (\<lambda>s. nat ((s ''h'' 0 + s ''l'' 0) div 2))" and
+        R="measure (\<lambda>s. nat (s ''h'' 0 - s ''l'' 0))" and
         I="\<lambda>_. vars l h x in bisection_invar l h x" 
          ])
-  supply bisect_aux0[simp] bisect_aux1[simp] bisect_aux2[simp] bisect_aux3[simp] bisect_aux4[simp]
+  supply bisect_aux0[simp] bisect_aux1[simp] bisect_aux2[simp] bisect_aux3[simp]
   apply (vcg_all; (auto simp: bisection_invar_def; fail)?)
+  done
   
   (*
     Hint: I used the invariant  
@@ -439,7 +438,7 @@ lemma sqrt_bisect_correct: "
     Note that, if you implement the algorithm differently than I did, 
     you may need to change the invariant. DO NOT CHANGE THE SPECIFICATION.
   *)
-done
+
   
   
 end
