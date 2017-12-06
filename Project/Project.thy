@@ -201,8 +201,7 @@ text \<open>
 (** Define the invariant and prove the insert algorithm correct! *)
 definition insert_invar where
   "insert_invar a\<^sub>0 a l h i j \<equiv> 
-      ( \<forall>k\<in>{j+1..<i+1}. a(j) \<le> a k)  
-      \<and> l\<ge> 0\<and> h\<ge> j \<and> j\<ge> l \<and> i \<ge> 0 \<and>
+      ( \<forall>k\<in>{j+1..<i+1}. a(j) \<le> a k)\<and> l\<ge> 0\<and> h\<ge> j \<and> j\<ge> l \<and> i \<ge> 0 \<and>
       (* Add the missing parts of the invariant *)
       (\<forall>k1\<in>{l..<j}. \<forall>k2\<in>{j+1..<i+1}. a k1 \<le> a k2)  (* Elements of L \<le> R *)
     
@@ -251,16 +250,8 @@ lemma
   
 subsubsection \<open>VCs\<close>
 (* Put your lemmas that you extracted from the VCG here *)
-lemma "\<And>z l i h ja. insert_invar z z l h i ja \<Longrightarrow> l < ja \<Longrightarrow> z ja < z (ja - 1) \<Longrightarrow> swap z (ja - 1) ja = z"
-  apply (auto simp:insert_invar_def)
-    
-  sorry
-    
-lemma " \<And>z l i h. l < i \<Longrightarrow> i < h \<Longrightarrow> ran_sorted z l i \<Longrightarrow> insert_invar z z l h i i"
-  sorry
-    
-lemma "\<And>z l i h ja. insert_invar z z l h i ja \<Longrightarrow> l < ja \<Longrightarrow> z ja < z (ja - 1) \<Longrightarrow> insert_invar z (swap z (ja - 1) ja) l h i (ja - 1)"
-  sorry
+
+
 subsection \<open>Correctness Proof\<close>
 lemma insert_correct[vcg_rules]: "
   \<Turnstile>\<^sub>t {\<lambda>a\<^sub>0. vars l i h (a:imap) in a=a\<^sub>0 \<and> l<i \<and>i<h \<and> ran_sorted a l i} 
@@ -273,11 +264,9 @@ lemma insert_correct[vcg_rules]: "
   unfolding insert_prog_def
   apply (rewrite annot_tinvar[where
         R="measure (\<lambda>s. nat (s ''j'' 0 - s ''l'' 0))" and
-        I="\<lambda>(a\<^sub>0). vars l i j h (a:imap) in  a=a\<^sub>0 \<and> insert_invar a\<^sub>0 a l h i j"
-         ])
-  apply vcg_all
-    
-  
+        I="\<lambda>(a\<^sub>0). vars l i j h (a:imap) in a=a\<^sub>0 \<and> insert_invar a\<^sub>0 a l h i j" ])
+  apply vcg_all 
+    quickcheck
   sorry
 
 section \<open>Insertion Sort\<close>
@@ -292,6 +281,22 @@ text \<open> Here, you are on your own!
   Note: You are *not* required to specify that the elements 
     of the array outside the range \<open>l..<h\<close> are preserved (cf. Bonus 1).
 \<close>
+  
+lemma sort_correct[vcg_rules]: "
+  \<Turnstile>\<^sub>t {\<lambda>a\<^sub>0. vars l h i j (a:imap) in a=a\<^sub>0 \<and> l<i \<and>i<h \<and> ran_sorted a l i} 
+  sort_prog
+  {\<lambda>a\<^sub>0. vars l h i j (a:imap) in         
+      ran_sorted a l (i+1) 
+      \<and> mset_ran a l h = mset_ran a\<^sub>0 l h
+  } mod {''a'',''t'', ''i'',''j''}"
+  unfolding sort_prog_def
+  apply (rewrite annot_tinvar[where
+        R="undefined" and
+        I="undefined"
+         ])
+  apply vcg_all
+  sorry
+
   
 section \<open>Bonuses\<close>
 (* To grab some bonus points, for all students. 
@@ -429,7 +434,6 @@ lemma sqrt_bisect_correct: "
   supply bisect_aux0[simp] bisect_aux1[simp] bisect_aux2[simp] bisect_aux3[simp]
   apply (vcg_all; (auto simp: bisection_invar_def; fail)?)
   done
-  
   (*
     Hint: I used the invariant  
       \<open>\<lambda>_. vars l h x in 0\<le>l \<and> l<h \<and> l\<^sup>2\<le>x \<and> x<h\<^sup>2\<close>
@@ -437,9 +441,7 @@ lemma sqrt_bisect_correct: "
   
     Note that, if you implement the algorithm differently than I did, 
     you may need to change the invariant. DO NOT CHANGE THE SPECIFICATION.
-  *)
-
-  
+  *)  
   
 end
 end
