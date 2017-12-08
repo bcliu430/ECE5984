@@ -199,15 +199,14 @@ text \<open>
 \<close>
 
 (** Define the invariant and prove the insert algorithm correct! *)
-definition insert_invar where
+definition insert_invar :: "(int \<Rightarrow> int) \<Rightarrow> (int \<Rightarrow> int) \<Rightarrow> int \<Rightarrow> int \<Rightarrow> int \<Rightarrow> int \<Rightarrow> bool" where
   "insert_invar a\<^sub>0 a l h i j \<equiv> 
-      ( \<forall>k\<in>{j+1..<i+1}. a(j) \<le> a k)\<and> l\<ge> 0\<and> h\<ge> j \<and> j\<ge> l \<and> i \<ge> 0 \<and>
-      (* Add the missing parts of the invariant *)
-      (\<forall>k1\<in>{l..<j}. \<forall>k2\<in>{j+1..<i+1}. a k1 \<le> a k2)  (* Elements of L \<le> R *)
-    
-    \<and> mset_ran a l h = mset_ran a\<^sub>0 l h   (* Multiset of whole range unchanged *)
+    l\<ge> 0\<and> h\<ge> j \<and> j\<ge> l \<and> i \<ge> l \<and> h >i \<and> (* boundary conditions*)
+    ( \<forall>k\<in>{j+1..<i+1}. a(j) \<le> a k)\<and> (* a[j] < R *)
+    ran_sorted a l j \<and> ran_sorted a j h \<and>(* L and R are sorted*)
+    (\<forall>k1\<in>{l..<j}. \<forall>k2\<in>{j+1..<i+1}. a k1 \<le> a k2) \<and>  (* Elements of L \<le> R *)
+    mset_ran a l h = mset_ran a\<^sub>0 l h   (* Multiset of whole range unchanged *)
     "
-
 
 subsection \<open>VCs\<close>
 (**
@@ -251,7 +250,6 @@ lemma
 subsubsection \<open>VCs\<close>
 (* Put your lemmas that you extracted from the VCG here *)
 
-
 subsection \<open>Correctness Proof\<close>
 lemma insert_correct[vcg_rules]: "
   \<Turnstile>\<^sub>t {\<lambda>a\<^sub>0. vars l i h (a:imap) in a=a\<^sub>0 \<and> l<i \<and>i<h \<and> ran_sorted a l i} 
@@ -263,11 +261,11 @@ lemma insert_correct[vcg_rules]: "
      mod {''a'',''t'',''j''}"
   unfolding insert_prog_def
   apply (rewrite annot_tinvar[where
-        R="measure (\<lambda>s. nat (s ''j'' 0 - s ''l'' 0))" and
-        I="\<lambda>(a\<^sub>0). vars l i j h (a:imap) in a=a\<^sub>0 \<and> insert_invar a\<^sub>0 a l h i j" ])
-  apply vcg_all 
-    quickcheck
-  sorry
+        R = "measure_exp ($j - $l)" and
+        I = "\<lambda>a\<^sub>0. vars (a:imap) l h i j in insert_invar a\<^sub>0 a l h i j" ])
+  apply (vcg_all; (auto simp: insert_invar_def; fail)?)
+  
+    sorry
 
 section \<open>Insertion Sort\<close>
   
@@ -291,7 +289,7 @@ lemma sort_correct[vcg_rules]: "
   } mod {''a'',''t'', ''i'',''j''}"
   unfolding sort_prog_def
   apply (rewrite annot_tinvar[where
-        R="undefined" and
+        R="measure_exp ($h - $l)" and
         I="undefined"
          ])
   apply vcg_all
