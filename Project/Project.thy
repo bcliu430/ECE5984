@@ -148,14 +148,6 @@ text \<open>Remark on variable bindings in pre/postconditions:
   See specification below for an example!
 \<close>  
 
-term "vars a l h in ran_sorted a l h" (** Type error! *)
-  (* Example for the type-error that you will get if you accidentally bind 
-    an array as a plain variable \<dots> *)
-
-(* This would be the correct specification *)
-term "vars (a:imap) l h in ran_sorted a l h" 
-  
-
 lemma swap_prog_correct[vcg_rules]: "\<Turnstile>\<^sub>t {\<lambda>a\<^sub>0. vars (a:imap) j in a=a\<^sub>0} 
             swap_prog 
           {\<lambda>a\<^sub>0. vars (a:imap) j in a=swap a\<^sub>0 (j-1) j} mod {''a'',''t''}"
@@ -201,9 +193,9 @@ text \<open>
 (** Define the invariant and prove the insert algorithm correct! *)
 definition insert_invar :: "(int \<Rightarrow> int) \<Rightarrow> (int \<Rightarrow> int) \<Rightarrow> int \<Rightarrow> int \<Rightarrow> int \<Rightarrow> int \<Rightarrow> bool" where
   "insert_invar a\<^sub>0 a l h i j \<equiv> 
-    l\<ge> 0\<and> h\<ge> j \<and> j\<ge> l \<and> i \<ge> l \<and> h >i \<and> (* boundary conditions*)
-    ( \<forall>k\<in>{j+1..<i+1}. a(j) \<le> a k)\<and> (* a[j] < R *)
-    ran_sorted a l j \<and> ran_sorted a j h \<and>(* L and R are sorted*)
+    i \<ge> j \<and> i> l \<and> h > i \<and> (* boundary conditions*)
+    ( \<forall>k\<in>{j+1..<i+1}. a j \<le> a k)\<and> (* a[j] < R *)
+    ran_sorted a l j \<and> ran_sorted a (j+1) (i+1) \<and>(* L and R are sorted*)
     (\<forall>k1\<in>{l..<j}. \<forall>k2\<in>{j+1..<i+1}. a k1 \<le> a k2) \<and>  (* Elements of L \<le> R *)
     mset_ran a l h = mset_ran a\<^sub>0 l h   (* Multiset of whole range unchanged *)
     "
@@ -245,10 +237,67 @@ lemma
   
 (* Add more lemmas here as required *)
 
-  
+
   
 subsubsection \<open>VCs\<close>
 (* Put your lemmas that you extracted from the VCG here *)
+lemma ins_aux0: 
+"\<And>z a l h i ja k.
+       l < ja \<Longrightarrow>
+       a ja < a (ja - 1) \<Longrightarrow>
+       i < h \<Longrightarrow>
+       \<forall>k\<in>{ja + 1..<i + 1}. a ja \<le> a k \<Longrightarrow>
+       ran_sorted a l ja \<Longrightarrow>
+       ran_sorted a (ja + 1) (i + 1) \<Longrightarrow>
+       \<forall>k1\<in>{l..<ja}. \<forall>k2\<in>{ja + 1..<i + 1}. a k1 \<le> a k2 \<Longrightarrow>
+       mset_ran a l h = mset_ran z l h \<Longrightarrow> ja \<le> k \<Longrightarrow> k \<le> i \<Longrightarrow> swap a (ja - 1) ja (ja - 1) \<le> swap a (ja - 1) ja k"
+
+  unfolding mset_ran_def swap_def image_mset_def
+  by simp
+lemma ins_aux1:   " \<And>z a l h i ja.
+       l < ja \<Longrightarrow>
+       a ja < a (ja - 1) \<Longrightarrow>
+       ja \<le> i \<Longrightarrow>
+       i < h \<Longrightarrow>
+       \<forall>k\<in>{ja + 1..<i + 1}. a ja \<le> a k \<Longrightarrow>
+       ran_sorted a l ja \<Longrightarrow>
+       ran_sorted a (ja + 1) (i + 1) \<Longrightarrow>
+       \<forall>k1\<in>{l..<ja}. \<forall>k2\<in>{ja + 1..<i + 1}. a k1 \<le> a k2 \<Longrightarrow>
+       mset_ran a l h = mset_ran z l h \<Longrightarrow> ran_sorted (swap a (ja - 1) ja) ja (i + 1)"
+  unfolding mset_ran_def swap_def image_mset_def
+  by (simp add: ran_sorted_def)
+
+lemma ins_aux2 :"\<And>z a l h i ja k1 k2.
+       a ja < a (ja - 1) \<Longrightarrow>
+       i < h \<Longrightarrow>
+       \<forall>k\<in>{ja + 1..<i + 1}. a ja \<le> a k \<Longrightarrow>
+       ran_sorted a l ja \<Longrightarrow>
+       ran_sorted a (ja + 1) (i + 1) \<Longrightarrow>
+       \<forall>k1\<in>{l..<ja}. \<forall>k2\<in>{ja + 1..<i + 1}. a k1 \<le> a k2 \<Longrightarrow>
+       mset_ran a l h = mset_ran z l h \<Longrightarrow>
+       l \<le> k1 \<Longrightarrow> k1 < ja - 1 \<Longrightarrow> ja \<le> k2 \<Longrightarrow> k2 \<le> i \<Longrightarrow> swap a (ja - 1) ja k1 \<le> swap a (ja - 1) ja k2"
+  unfolding mset_ran_def swap_def image_mset_def
+  by (simp add: ran_sorted_alt)
+  
+lemma insert_aux0: "\<And>z a l h i ja.
+       insert_invar z a l h i ja \<Longrightarrow> l < ja \<Longrightarrow> a ja < a (ja - 1) \<Longrightarrow> insert_invar z (swap a (ja - 1) ja) l h i (ja - 1)"
+  apply (auto simp: insert_invar_def)
+  prefer 2 
+  using ran_sorted_alt ran_sorted_swap_outside apply auto[1]
+  prefer 4
+  apply (simp add: mset_ran_swap)
+  using ins_aux0 apply blast  
+  using ins_aux1 apply blast
+  using ins_aux2 apply blast
+  done
+
+lemma insert_aux1: "\<And>z a l h i j. l < j \<longrightarrow> \<not> a j < a (j - 1) \<Longrightarrow> insert_invar z a l h i j \<Longrightarrow> ran_sorted a l (i + 1)"
+  apply (auto simp: insert_invar_def)
+  apply (smt atLeastLessThan_iff ran_sorted_alt)
+  by (smt atLeastLessThan_iff ran_sorted_alt)
+lemma insert_aux2: "\<And>z l i h. l < i \<Longrightarrow> i < h \<Longrightarrow> ran_sorted z l i \<Longrightarrow> insert_invar z z l h i i"
+  apply (auto simp: insert_invar_def)
+  by (simp add: ran_sorted_alt)
 
 subsection \<open>Correctness Proof\<close>
 lemma insert_correct[vcg_rules]: "
@@ -260,12 +309,12 @@ lemma insert_correct[vcg_rules]: "
       }
      mod {''a'',''t'',''j''}"
   unfolding insert_prog_def
+  supply insert_aux0[simp] insert_aux1[simp] insert_aux2[simp]
   apply (rewrite annot_tinvar[where
         R = "measure_exp ($j - $l)" and
         I = "\<lambda>a\<^sub>0. vars (a:imap) l h i j in insert_invar a\<^sub>0 a l h i j" ])
   apply (vcg_all; (auto simp: insert_invar_def; fail)?)
-  
-    sorry
+  done
 
 section \<open>Insertion Sort\<close>
   
@@ -279,21 +328,27 @@ text \<open> Here, you are on your own!
   Note: You are *not* required to specify that the elements 
     of the array outside the range \<open>l..<h\<close> are preserved (cf. Bonus 1).
 \<close>
-  
+
+definition sort_invar :: "(int \<Rightarrow> int)\<Rightarrow> (int \<Rightarrow> int) \<Rightarrow> int \<Rightarrow> int \<Rightarrow> int \<Rightarrow> bool" where
+  "sort_invar a\<^sub>0 a l h i  \<equiv>
+  ran_sorted a l i \<and>
+  i > l \<and> i \<le> h \<and>
+  mset_ran a l h = mset_ran a\<^sub>0 l h 
+"
+
 lemma sort_correct[vcg_rules]: "
-  \<Turnstile>\<^sub>t {\<lambda>a\<^sub>0. vars l h i j (a:imap) in a=a\<^sub>0 \<and> l<i \<and>i<h \<and> ran_sorted a l i} 
+  \<Turnstile>\<^sub>t {\<lambda>a\<^sub>0. vars l h i (a:imap) in a=a\<^sub>0 \<and> l<h} 
   sort_prog
-  {\<lambda>a\<^sub>0. vars l h i j (a:imap) in         
-      ran_sorted a l (i+1) 
+  {\<lambda>a\<^sub>0. vars l h i (a:imap) in         
+      ran_sorted a l h
       \<and> mset_ran a l h = mset_ran a\<^sub>0 l h
   } mod {''a'',''t'', ''i'',''j''}"
   unfolding sort_prog_def
   apply (rewrite annot_tinvar[where
-        R="measure_exp ($h - $l)" and
-        I="undefined"
-         ])
-  apply vcg_all
-  sorry
+        R="measure_exp ($h - $i)" and
+        I="\<lambda>a\<^sub>0. vars (a:imap) l h i in sort_invar a\<^sub>0 a l h i " ])
+  apply (vcg_all; (auto simp: sort_invar_def; fail)?)
+  by (simp add: ran_sorted_alt sort_invar_def)
 
   
 section \<open>Bonuses\<close>
