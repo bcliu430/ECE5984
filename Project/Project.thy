@@ -372,6 +372,25 @@ text \<open>Augment your specifications and proofs to express that elements outs
   Hint: @{prop \<open>a = a\<^sub>0 on -{l..<h}\<close>}, @{const eq_on}
 \<close>
 
+definition boundary_invar :: "(int \<Rightarrow> int)\<Rightarrow> (int \<Rightarrow> int) \<Rightarrow> int \<Rightarrow> int \<Rightarrow> int \<Rightarrow> bool" where
+  "boundary_invar a\<^sub>0 a l h i  \<equiv>
+ran_sorted a l h\<and>
+  i > l \<and> i \<le> h  "
+
+lemma sort_boundary_correct[vcg_rules]: "
+  \<Turnstile>\<^sub>t {\<lambda>a\<^sub>0. vars l h i (a:imap) in l<h} 
+  sort_prog
+  {\<lambda>a\<^sub>0. vars l h i (a:imap) in a = a\<^sub>0 on -{l..<h}
+  } mod {''a'',''t'', ''i'',''j''}"
+  unfolding sort_prog_def eq_on_def
+  apply (rewrite annot_tinvar[where
+        R="measure_exp ($h - $i)" and
+        I="\<lambda>a\<^sub>0. vars (a:imap) l h i in boundary_invar a\<^sub>0 a l h i " ])
+  apply (vcg_all; (auto simp: boundary_invar_def eq_on_def; fail)?)
+  prefer 2
+  quickcheck
+  sorry
+
 subsection \<open>Optimized insert Function\<close>
 text \<open>
   The Wikipedia page mentions an optimized version of the inner loop,
